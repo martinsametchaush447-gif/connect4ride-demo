@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A0A0C">
+<title>Connect4Ride app prototype</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone screen at a time. On a phone it fills the screen; on a computer it sits in a phone frame with arrows. */
+:root{--ground:#050506;--ink:#F3F1EA;--muted:#A9A69D;--gold:#F3D27A;--line:#272729;--panel:#0F0F11;--ui:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:dark}
+html,body{height:100%;margin:0;background:var(--ground);color:var(--ink);font-family:var(--ui);overflow:hidden;width:100%;max-width:100vw}
+body{overflow:hidden;-webkit-tap-highlight-color:transparent}
+#stage{position:relative;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+#wrap{position:relative;overflow:hidden;flex:none}
+#phone{position:absolute;top:0;left:0;width:390px;transform-origin:0 0;background:#0A0A0C;overflow:hidden}
+.desk #phone{border-radius:46px;box-shadow:0 0 0 10px #18181b,0 0 0 11px #2c2c30,0 40px 80px -30px rgba(0,0,0,.8)}
+.desk #wrap{overflow:visible}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;animation:in .28s ease-out}
+.screen.back{animation-name:inback}
+@keyframes in{from{transform:translateX(24px);opacity:.4}to{transform:none;opacity:1}}
+@keyframes inback{from{transform:translateX(-24px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.screen{animation:none}}
+.mob .sb{display:none}
+.screen button,.tap{cursor:pointer}
+.screen button:focus-visible,.tap:focus-visible,#bar button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#bar{display:none;align-items:center;gap:16px;font-size:14px;color:var(--muted)}
+.desk #bar{display:flex}
+#bar button{width:40px;height:40px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:18px;cursor:pointer}
+#bar button:disabled{opacity:.35;cursor:default}
+#label{min-width:220px;text-align:center}
+#label b{color:var(--ink);font-weight:600}
+#dots{display:flex;gap:6px;justify-content:center;margin-top:6px}
+#dots i{width:7px;height:7px;border-radius:999px;background:#3a3a3e}
+#dots i.on{background:var(--gold)}
+#hint{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(15,15,17,.94);border:1px solid #4C3E20;color:var(--ink);font-size:13px;padding:10px 16px;border-radius:999px;white-space:normal;max-width:calc(100vw - 32px);box-sizing:border-box;text-align:center;transition:opacity .4s;z-index:5;pointer-events:none}
+#hint.gone{opacity:0}
+[hidden]{display:none!important}
+.desk #hint{bottom:auto;top:18px}
+
+#s-main .r{width:390px;min-height:844px;height:auto;box-sizing:border-box;position:relative;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#F3F1EA;background:#0A0A0C}
+#s-main .h{font-family:Outfit,Inter,sans-serif}
+#s-main .card{background:#121214;border:1px solid #272729;border-radius:16px}
+#s-main .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #4C3E20;background:#0F0F11;font-size:12px;color:#F3D27A}
+#s-main .pick{display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:14px;background:#121214;border:1px solid #272729;text-align:left;color:#F3F1EA;font:inherit;cursor:pointer}
+#s-main .muted{color:#A9A69D}
+#s-main .nav{position:absolute;left:0;right:0;bottom:0;height:78px;background:#0F0F11;border-top:1px solid #272729;display:flex;justify-content:space-around;align-items:flex-start;padding-top:10px}
+#s-main .nav button{background:none;border:0;color:#A9A69D;font:500 11px Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+#s-main .nav button.on{color:#F3D27A}
+#s-main .wm{font-family:Cinzel,serif;font-weight:700;letter-spacing:1.5px}
+#s-quote .r{width:390px;min-height:844px;height:auto;box-sizing:border-box;position:relative;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#F3F1EA;background:#0A0A0C}
+#s-quote .h{font-family:Outfit,Inter,sans-serif}
+#s-quote .wm{font-family:Cinzel,serif;font-weight:700;letter-spacing:1.5px}
+#s-quote .card{background:#121214;border:1px solid #272729;border-radius:16px}
+#s-quote .muted{color:#A9A69D}
+#s-quote .gold{color:#F3D27A}
+#s-quote .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #4C3E20;background:#0F0F11;font-size:12px;color:#F3D27A}
+#s-quote .btn{height:52px;border-radius:999px;border:0;font:600 16px Inter,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+#s-quote .btn-gold{background:linear-gradient(180deg,#F6DB8A,#C9A140);color:#1A1405;box-shadow:rgba(216,174,73,.45) 0 12px 30px -12px}
+#s-quote .btn-ghost{background:#0F0F11;color:#F3F1EA;border:1px solid #4C3E20}
+#s-quote .row{display:flex;align-items:center;gap:12px}
+#s-quote .nav{position:absolute;left:0;right:0;bottom:0;height:78px;background:#0F0F11;border-top:1px solid #272729;display:flex;justify-content:space-around;align-items:flex-start;padding-top:10px}
+#s-quote .nav button{background:none;border:0;color:#A9A69D;font:500 11px Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+#s-quote .nav button.on{color:#F3D27A}
+#s-quote .top{display:flex;align-items:center;gap:12px;padding:6px 20px 0}
+#s-quote .iconbtn{width:40px;height:40px;border-radius:999px;background:#0F0F11;border:1px solid #272729;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+#s-trip .r{width:390px;min-height:844px;height:auto;box-sizing:border-box;position:relative;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#F3F1EA;background:#0A0A0C}
+#s-trip .h{font-family:Outfit,Inter,sans-serif}
+#s-trip .wm{font-family:Cinzel,serif;font-weight:700;letter-spacing:1.5px}
+#s-trip .card{background:#121214;border:1px solid #272729;border-radius:16px}
+#s-trip .muted{color:#A9A69D}
+#s-trip .gold{color:#F3D27A}
+#s-trip .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #4C3E20;background:#0F0F11;font-size:12px;color:#F3D27A}
+#s-trip .btn{height:52px;border-radius:999px;border:0;font:600 16px Inter,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+#s-trip .btn-gold{background:linear-gradient(180deg,#F6DB8A,#C9A140);color:#1A1405;box-shadow:rgba(216,174,73,.45) 0 12px 30px -12px}
+#s-trip .btn-ghost{background:#0F0F11;color:#F3F1EA;border:1px solid #4C3E20}
+#s-trip .row{display:flex;align-items:center;gap:12px}
+#s-trip .nav{position:absolute;left:0;right:0;bottom:0;height:78px;background:#0F0F11;border-top:1px solid #272729;display:flex;justify-content:space-around;align-items:flex-start;padding-top:10px}
+#s-trip .nav button{background:none;border:0;color:#A9A69D;font:500 11px Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+#s-trip .nav button.on{color:#F3D27A}
+#s-trip .top{display:flex;align-items:center;gap:12px;padding:6px 20px 0}
+#s-trip .iconbtn{width:40px;height:40px;border-radius:999px;background:#0F0F11;border:1px solid #272729;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+#s-delay .r{width:390px;min-height:844px;height:auto;box-sizing:border-box;position:relative;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#F3F1EA;background:#0A0A0C}
+#s-delay .h{font-family:Outfit,Inter,sans-serif}
+#s-delay .wm{font-family:Cinzel,serif;font-weight:700;letter-spacing:1.5px}
+#s-delay .card{background:#121214;border:1px solid #272729;border-radius:16px}
+#s-delay .muted{color:#A9A69D}
+#s-delay .gold{color:#F3D27A}
+#s-delay .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #4C3E20;background:#0F0F11;font-size:12px;color:#F3D27A}
+#s-delay .btn{height:52px;border-radius:999px;border:0;font:600 16px Inter,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+#s-delay .btn-gold{background:linear-gradient(180deg,#F6DB8A,#C9A140);color:#1A1405;box-shadow:rgba(216,174,73,.45) 0 12px 30px -12px}
+#s-delay .btn-ghost{background:#0F0F11;color:#F3F1EA;border:1px solid #4C3E20}
+#s-delay .row{display:flex;align-items:center;gap:12px}
+#s-delay .nav{position:absolute;left:0;right:0;bottom:0;height:78px;background:#0F0F11;border-top:1px solid #272729;display:flex;justify-content:space-around;align-items:flex-start;padding-top:10px}
+#s-delay .nav button{background:none;border:0;color:#A9A69D;font:500 11px Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+#s-delay .nav button.on{color:#F3D27A}
+#s-delay .top{display:flex;align-items:center;gap:12px;padding:6px 20px 0}
+#s-delay .iconbtn{width:40px;height:40px;border-radius:999px;background:#0F0F11;border:1px solid #272729;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+#s-receipt .r{width:390px;min-height:844px;height:auto;box-sizing:border-box;position:relative;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#F3F1EA;background:#0A0A0C}
+#s-receipt .h{font-family:Outfit,Inter,sans-serif}
+#s-receipt .wm{font-family:Cinzel,serif;font-weight:700;letter-spacing:1.5px}
+#s-receipt .card{background:#121214;border:1px solid #272729;border-radius:16px}
+#s-receipt .muted{color:#A9A69D}
+#s-receipt .gold{color:#F3D27A}
+#s-receipt .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #4C3E20;background:#0F0F11;font-size:12px;color:#F3D27A}
+#s-receipt .btn{height:52px;border-radius:999px;border:0;font:600 16px Inter,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+#s-receipt .btn-gold{background:linear-gradient(180deg,#F6DB8A,#C9A140);color:#1A1405;box-shadow:rgba(216,174,73,.45) 0 12px 30px -12px}
+#s-receipt .btn-ghost{background:#0F0F11;color:#F3F1EA;border:1px solid #4C3E20}
+#s-receipt .row{display:flex;align-items:center;gap:12px}
+#s-receipt .nav{position:absolute;left:0;right:0;bottom:0;height:78px;background:#0F0F11;border-top:1px solid #272729;display:flex;justify-content:space-around;align-items:flex-start;padding-top:10px}
+#s-receipt .nav button{background:none;border:0;color:#A9A69D;font:500 11px Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+#s-receipt .nav button.on{color:#F3D27A}
+#s-receipt .top{display:flex;align-items:center;gap:12px;padding:6px 20px 0}
+#s-receipt .iconbtn{width:40px;height:40px;border-radius:999px;background:#0F0F11;border:1px solid #272729;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+#s-chat .r{width:390px;height:100%;min-height:560px;box-sizing:border-box;position:relative;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:#F3F1EA;background:#0A0A0C;display:flex;flex-direction:column}
+#s-chat .h{font-family:Outfit,Inter,sans-serif}
+#s-chat .muted{color:#A9A69D}
+#s-chat .bot{align-self:flex-start;max-width:290px;background:#121214;border:1px solid #272729;border-radius:16px 16px 16px 4px;padding:10px 12px;font-size:14px;line-height:1.45}
+#s-chat .me{align-self:flex-end;max-width:270px;background:#2A2312;border:1px solid #4C3E20;border-radius:16px 16px 4px 16px;padding:10px 12px;font-size:14px;line-height:1.45}
+#s-chat .qr{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:999px;border:1px solid #4C3E20;background:#0F0F11;color:#F3D27A;font:500 13px Inter,sans-serif;cursor:pointer;white-space:nowrap}
+#s-chat .tag{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;background:rgba(243,210,122,.12);color:#F3D27A;font-size:10px;font-weight:600;letter-spacing:1px}
+#ov{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;justify-content:flex-end}
+#ovbg{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+#ovp{position:relative;box-sizing:border-box;width:100%;max-width:100%;max-height:82%;display:flex;flex-direction:column;background:#0F0F11;border-top:1px solid #272729;border-radius:20px 20px 0 0;animation:sheetup .22s ease-out;color:#F3F1EA;font-family:Inter,system-ui,sans-serif}
+@keyframes sheetup{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+#ovh{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px}
+#ovt{font-size:17px;font-weight:700}
+#ovx{width:36px;height:36px;border-radius:999px;border:1px solid #272729;background:#121214;color:#F3F1EA;font-size:22px;line-height:1;cursor:pointer}
+#ovb{box-sizing:border-box;min-width:0;overflow-y:auto;padding:4px 16px 20px;display:flex;flex-direction:column;gap:12px;font-size:14px;line-height:1.45}
+#ovb p{margin:0}
+#ovb .sub{color:#A9A69D;font-size:12.5px}
+#ovb .list{display:flex;flex-direction:column;gap:8px}
+#ovb .lrow{box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:48px;padding:10px 12px;border-radius:12px;background:#121214;border:1px solid #272729;color:#F3F1EA;font:500 14px Inter,system-ui,sans-serif;text-align:left;width:100%}
+#ovb button.lrow{cursor:pointer}
+#ovb .lrow>*:first-child{flex:1;min-width:0;overflow-wrap:anywhere}
+#ovb .lrow>*:not(:first-child){flex:none}
+#ovb .lrow.sel{border-color:#D8AE49;background:#17140C}
+#ovb .opts{display:flex;flex-wrap:wrap;gap:8px}
+#ovb .opt{height:38px;padding:0 14px;border-radius:999px;border:1px solid #4C3E20;background:#121214;color:#F3D27A;font:500 13.5px Inter,system-ui,sans-serif;cursor:pointer}
+#ovb .opt.sel{background:#D8AE49;color:#1A1405;border-color:#D8AE49}
+.gbtn{box-sizing:border-box;width:100%;height:48px;border-radius:999px;border:0;background:linear-gradient(180deg,#F6DB8A,#C9A140);color:#1A1405;font:600 15px Inter,system-ui,sans-serif;cursor:pointer}
+.obtn{box-sizing:border-box;width:100%;height:48px;border-radius:999px;border:1px solid #3A3A3D;background:transparent;color:#F3F1EA;font:600 15px Inter,system-ui,sans-serif;cursor:pointer}
+.obtn.endcall{border-color:#7A2A2A;color:#FF8A8A}
+.sinp{width:100%;box-sizing:border-box;height:46px;padding:0 14px;border-radius:12px;border:1px solid #3A3A3D;background:#0A0A0C;color:#F3F1EA;font:500 15px Inter,system-ui,sans-serif;outline:none;resize:none}
+.sinp:focus{border-color:#D8AE49}
+.callbig{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0}
+.avatar{width:72px;height:72px;border-radius:999px;background:#2A2312;border:1px solid #4C3E20;color:#F3D27A;display:grid;place-items:center;font-size:28px;font-weight:700}
+.msgs{display:flex;flex-direction:column;gap:8px;min-height:40px}
+.demo-tag{font-size:11px;color:#A9A69D;margin-top:4px}
+#toast{box-sizing:border-box;position:absolute;left:16px;right:16px;bottom:96px;z-index:70;padding:12px 14px;border-radius:12px;background:#F3F1EA;color:#121214;font:500 13.5px/1.4 Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.4);text-align:center}
+#ov:not([hidden])~#toast{top:16px;bottom:auto}
+.mapwrap{overflow:hidden}
+#mapsvg{cursor:grab;user-select:none;-webkit-user-select:none}
+#mapsvg.drag{cursor:grabbing}
+.mapctl{position:absolute;right:12px;top:110px;bottom:auto;z-index:5;display:flex;flex-direction:column;gap:8px}
+.mapctl button{width:40px;height:40px;border-radius:12px;border:1px solid #272729;background:rgba(18,18,20,.92);color:#F3F1EA;font-size:20px;display:grid;place-items:center;cursor:pointer}
+#dropin{flex:1;min-width:0;background:transparent;border:0;outline:none;color:#F3F1EA;font:500 15px Inter,system-ui,sans-serif;padding:0}
+#dropin::placeholder{color:#A9A69D}
+#dropgo{flex:none;height:32px;padding:0 14px;border-radius:999px;border:0;background:#D8AE49;color:#1A1405;font:600 13px Inter,system-ui,sans-serif;cursor:pointer}
+#micbtn{flex:none;background:transparent;border:0;padding:4px;color:inherit;cursor:pointer;display:grid;place-items:center;border-radius:999px}
+#micbtn.rec{background:rgba(216,174,73,.18);animation:micpulse 1s ease-in-out infinite}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(216,174,73,.5)}50%{box-shadow:0 0 0 8px rgba(216,174,73,0)}}
+.dots{display:inline-flex;gap:4px;padding:4px 0}
+.dots i{width:6px;height:6px;border-radius:999px;background:#A9A69D;animation:dotb 1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes dotb{0%,80%,100%{opacity:.3}40%{opacity:1}}
+.star-on svg{fill:#D8AE49;stroke:#D8AE49;color:#D8AE49}
+.star-off svg{fill:none;stroke:#5A5850;color:#5A5850}
+#chatlist{scroll-behavior:smooth}
+#chatlist>.bot.cardb{flex:none;box-sizing:border-box;width:calc(100% - 24px);max-width:290px}
+.dropwrap{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+#qrrow{display:flex;flex-wrap:nowrap;overflow-x:auto;max-width:100%;box-sizing:border-box;scrollbar-width:none}#qrrow::-webkit-scrollbar{display:none}
+#qrrow .qr{flex:none;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){#ovp,#micbtn.rec,.dots i{animation:none}}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}</style>
+</head><body>
+<div id="stage">
+<div id="wrap"><div id="phone">
+<section class="screen" id="s-main" data-title="Book a ride" hidden>
+<div class="r">
+  <div style="height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:14px;font-weight:600">
+    <span>9:41</span>
+    <span style="display:flex;gap:6px;align-items:center">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="#F3F1EA" stroke-width="1.6"><path d="M1 11h2M6 11V8M10 11V5M14 11V2"/></svg>
+      <svg width="24" height="12" viewBox="0 0 24 12" fill="none" stroke="#F3F1EA" stroke-width="1.4"><rect x="1" y="1" width="19" height="10" rx="3"/><rect x="3" y="3" width="13" height="6" rx="1.5" fill="#F3F1EA"/></svg>
+    </span>
+  </div>
+
+  <div style="padding:8px 20px 0;display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true"><circle cx="20" cy="20" r="19" stroke="#D8AE49" stroke-width="1.5"/><path d="M8 25c5-3 10-3 14 0s8 3 10 1" stroke="#F3D27A" stroke-width="2" stroke-linecap="round"/><path d="M9 29c5-2 9-2 13 0s7 2 9 1" stroke="#D8AE49" stroke-width="1.4" stroke-linecap="round"/><path d="M12 19l14-7 3 1-8 6 5 3-2 1-5-2-4 2-2-1 2-2z" fill="#F3D27A"/></svg>
+      <div>
+        <div class="wm" style="font-size:17px">CONNECT<span style="color:#F3D27A">4RIDE</span></div>
+        <div style="font-size:10px;letter-spacing:3px;color:#D8AE49">AIRPORT RIDES</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+    <button aria-label="Ask our assistant" style="height:40px;padding:0 12px;border-radius:999px;background:#0F0F11;border:1px solid #4C3E20;display:flex;align-items:center;gap:6px;color:#F3D27A;font:600 13px Inter,sans-serif;cursor:pointer">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
+      Ask
+    </button>
+    <button aria-label="Notifications" style="width:40px;height:40px;border-radius:999px;background:#0F0F11;border:1px solid #272729;display:flex;align-items:center;justify-content:center;cursor:pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3F1EA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    </button>
+    </div>
+  </div>
+
+  <div style="padding:22px 20px 0">
+    <div class="h" style="font-size:28px;font-weight:700;line-height:1.15">Good evening, Alex.<br><span style="color:#F3D27A">Where are you flying?</span></div>
+    <div style="margin-top:8px;font-size:12px;letter-spacing:1.5px;color:#D8AE49">AIRPORT &#8226; SEAPORT &#8226; TRAIN &#8226; 24/7</div>
+  </div>
+
+  <div class="card" style="margin:18px 20px 0;padding:6px 14px">
+    <label style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #272729">
+      <span style="width:10px;height:10px;border-radius:999px;background:#F3F1EA;flex:none"></span>
+      <span style="flex:1"><span class="muted" style="display:block;font-size:11px">Pickup</span><span style="font-size:15px;font-weight:500">Current location, Cheltenham</span></span>
+    </label>
+    <label style="display:flex;align-items:center;gap:12px;padding:10px 0">
+      <span style="width:10px;height:10px;border-radius:2px;background:#F3D27A;flex:none"></span>
+      <span style="flex:1"><span class="muted" style="display:block;font-size:11px">Drop-off</span><span style="font-size:15px;color:#A9A69D">Airport, seaport, station or address</span></span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A9A69D" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </label>
+  </div>
+
+  <div style="display:flex;gap:8px;padding:12px 20px 0">
+    <button style="flex:1;height:40px;border-radius:999px;background:linear-gradient(180deg,#F6DB8A,#C9A140);color:#1A1405;border:0;font:600 14px Inter,sans-serif;box-shadow:rgba(216,174,73,.5) 0 10px 28px -10px;cursor:pointer">Now</button>
+    <button style="flex:1;height:40px;border-radius:999px;background:#0F0F11;color:#F3F1EA;border:1px solid #4C3E20;font:600 14px Inter,sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+      Pre-book
+    </button>
+  </div>
+
+  <div style="padding:22px 20px 0;display:flex;justify-content:space-between;align-items:baseline">
+    <div class="h" style="font-size:17px;font-weight:600">Fixed airport fares</div>
+    <div style="font-size:12px;color:#D8AE49">See all 11</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 20px 0">
+    <button class="pick"><span class="h" style="font-weight:600;font-size:15px">Birmingham BHX</span><span class="muted" style="font-size:12px">1h 10m</span><span style="font-size:14px;color:#F3D27A;font-weight:600;margin-top:4px">from £119</span></button>
+    <button class="pick"><span class="h" style="font-weight:600;font-size:15px">Bristol BRS</span><span class="muted" style="font-size:12px">1h 10m</span><span style="font-size:14px;color:#F3D27A;font-weight:600;margin-top:4px">from £119</span></button>
+    <button class="pick"><span class="h" style="font-weight:600;font-size:15px">Heathrow LHR</span><span class="muted" style="font-size:12px">1h 45m</span><span style="font-size:14px;color:#F3D27A;font-weight:600;margin-top:4px">from £189</span></button>
+    <button class="pick"><span class="h" style="font-weight:600;font-size:15px">Gatwick LGW</span><span class="muted" style="font-size:12px">2h 20m</span><span style="font-size:14px;color:#F3D27A;font-weight:600;margin-top:4px">from £219</span></button>
+  </div>
+
+  <div class="card" style="margin:16px 20px 0;padding:12px 14px;display:flex;align-items:center;gap:12px">
+    <div style="width:36px;height:36px;border-radius:10px;background:rgba(243,210,122,.12);display:flex;align-items:center;justify-content:center;flex:none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.8" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+    </div>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:600">Book again: Home to Heathrow T5</div>
+      <div class="muted" style="font-size:12px">Executive Saloon · £189 fixed</div>
+    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A9A69D" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>
+  </div>
+
+  <nav class="nav">
+    <button class="on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>Book</button>
+    <button><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg>Trips</button>
+    <button><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>Business</button>
+    <button><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Account</button>
+  </nav>
+</div>
+</section>
+<section class="screen" id="s-quote" data-title="Fixed fare + flight" hidden>
+<div class="r">
+  <div style="height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:14px;font-weight:600">
+    <span>9:41</span>
+    <span style="display:flex;gap:6px;align-items:center">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="#F3F1EA" stroke-width="1.6"><path d="M1 11h2M6 11V8M10 11V5M14 11V2"/></svg>
+      <svg width="24" height="12" viewBox="0 0 24 12" fill="none" stroke="#F3F1EA" stroke-width="1.4"><rect x="1" y="1" width="19" height="10" rx="3"/><rect x="3" y="3" width="13" height="6" rx="1.5" fill="#F3F1EA"/></svg>
+    </span>
+  </div>
+  <div class="top"><button class="iconbtn" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3F1EA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+    <div><div class="h" style="font-weight:600;font-size:17px">Cheltenham to Heathrow T5</div><div class="muted" style="font-size:12px">96 miles &#183; about 1h 45m &#183; Fri 30 Oct, 11:30</div></div></div>
+  <div style="padding:16px 20px 0;display:flex;flex-direction:column;gap:8px">
+    <div class="h muted" style="font-size:13px;letter-spacing:1px">CHOOSE YOUR CAR</div>
+    <button class="row" style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid #D8AE49;background:#17140C;color:#F3F1EA;font:inherit;text-align:left;cursor:pointer">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14M6 17v2M18 17v2M3 13l2-6h14l2 6v4H3z"/><circle cx="7.5" cy="14" r="1"/><circle cx="16.5" cy="14" r="1"/></svg>
+      <span style="flex:1"><span class="h" style="display:block;font-weight:600;font-size:15px">Executive Saloon</span><span class="muted" style="font-size:12px">4 passengers &#183; 2 large cases</span></span>
+      <span class="h" style="font-weight:700;font-size:16px;color:#F3D27A">&#163;189</span><span style="width:22px;height:22px;border-radius:999px;background:#F3D27A;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1A1405" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></button>
+    <button class="row" style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid #272729;background:#121214;color:#F3F1EA;font:inherit;text-align:left;cursor:pointer">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14M6 17v2M18 17v2M3 13l2-6h14l2 6v4H3z"/><circle cx="7.5" cy="14" r="1"/><circle cx="16.5" cy="14" r="1"/></svg>
+      <span style="flex:1"><span class="h" style="display:block;font-weight:600;font-size:15px">MPV</span><span class="muted" style="font-size:12px">6 passengers &#183; 4 large cases</span></span>
+      <span class="h" style="font-weight:700;font-size:16px;color:#F3F1EA">&#163;214</span><span style="width:22px;height:22px;border-radius:999px;border:1.5px solid #3A3A3D"></span></button>
+    <button class="row" style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid #272729;background:#121214;color:#F3F1EA;font:inherit;text-align:left;cursor:pointer">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14M6 17v2M18 17v2M3 13l2-6h14l2 6v4H3z"/><circle cx="7.5" cy="14" r="1"/><circle cx="16.5" cy="14" r="1"/></svg>
+      <span style="flex:1"><span class="h" style="display:block;font-weight:600;font-size:15px">Minibus</span><span class="muted" style="font-size:12px">8 passengers &#183; 8 large cases</span></span>
+      <span class="h" style="font-weight:700;font-size:16px;color:#F3F1EA">&#163;239</span><span style="width:22px;height:22px;border-radius:999px;border:1.5px solid #3A3A3D"></span></button>
+    <button class="row" style="width:100%;padding:12px 14px;border-radius:14px;border:1.5px solid #272729;background:#121214;color:#F3F1EA;font:inherit;text-align:left;cursor:pointer">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14M6 17v2M18 17v2M3 13l2-6h14l2 6v4H3z"/><circle cx="7.5" cy="14" r="1"/><circle cx="16.5" cy="14" r="1"/></svg>
+      <span style="flex:1"><span class="h" style="display:block;font-weight:600;font-size:15px">Wheelchair accessible</span><span class="muted" style="font-size:12px">Ramp &#183; carer seat</span></span>
+      <span class="h" style="font-weight:700;font-size:16px;color:#F3F1EA">Quote</span><span style="width:22px;height:22px;border-radius:999px;border:1.5px solid #3A3A3D"></span></button>
+  </div>
+  <div class="card" style="margin:14px 20px 0;padding:12px 14px">
+    <label class="row"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span><span style="flex:1"><span class="muted" style="display:block;font-size:11px">Flight number (we track it for you)</span><span style="font-size:15px;font-weight:500">BA286</span></span><span class="chip">On time</span></label>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 20px 0">
+    <span class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Meet &amp; greet</span>
+    <span class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>60 min free wait</span>
+    <span class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>Flight monitoring</span>
+  </div>
+  <div class="row" style="margin:14px 20px 0;padding:12px 14px;border-radius:14px;border:1px solid #272729">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F3F1EA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg><span style="flex:1;font-size:14px">Phone wallet</span><span class="muted" style="font-size:13px">Change</span>
+  </div>
+  <div style="position:absolute;left:20px;right:20px;bottom:30px">
+    <div class="muted" style="text-align:center;font-size:12px;margin-bottom:10px">Fixed price, locked now. No surge, no meter.</div>
+    <button class="btn btn-gold" style="width:100%">Confirm fixed fare &#183; &#163;189</button>
+  </div>
+</div>
+</section>
+<section class="screen" id="s-trip" data-title="Live trip" hidden>
+<div class="r">
+  <div style="position:absolute;inset:0 0 auto 0;height:520px"><svg width="390" height="520" viewBox="0 0 390 520" role="img" aria-label="Map: your driver is at the start of the fastest route, along Lansdown Rd, the A40, Park St and Mill Lane to your pickup" style="display:block;background:#0D0D10"><defs><pattern id="tgrid" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0H0V22" fill="none" stroke="#141418" stroke-width="1"/></pattern></defs><rect width="390" height="520" fill="url(#tgrid)"/><rect x="141" y="181" width="58" height="78" rx="6" fill="#0F1A13"/><path d="M-10 60 H400" stroke="#16161A" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M-10 170 H400" stroke="#1D1D22" stroke-width="22" fill="none" stroke-linecap="round"/><path d="M-10 270 H210" stroke="#19191D" stroke-width="14" fill="none" stroke-linecap="round"/><path d="M-10 380 H400" stroke="#16161A" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M50 170 V530" stroke="#16161A" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M130 -10 V530" stroke="#19191D" stroke-width="14" fill="none" stroke-linecap="round"/><path d="M210 170 V530" stroke="#16161A" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M290 -10 V530" stroke="#1D1D22" stroke-width="20" fill="none" stroke-linecap="round"/><path d="M360 -10 V530" stroke="#16161A" stroke-width="10" fill="none" stroke-linecap="round"/><text x="14" y="155" text-anchor="start" fill="#4E4E55" font-size="10" font-family="Inter,sans-serif" letter-spacing=".5">A40</text><text x="306" y="236" transform="rotate(90 306 236)" text-anchor="start" fill="#4E4E55" font-size="10" font-family="Inter,sans-serif" letter-spacing=".5">Lansdown Rd</text><text x="14" y="293" text-anchor="start" fill="#4E4E55" font-size="10" font-family="Inter,sans-serif" letter-spacing=".5">Mill Lane</text><text x="114" y="336" transform="rotate(-90 114 336)" text-anchor="start" fill="#4E4E55" font-size="10" font-family="Inter,sans-serif" letter-spacing=".5">Park St</text><text x="170" y="223" text-anchor="middle" fill="#2E4A37" font-size="10" font-family="Inter,sans-serif">Park</text><path d="M290 122 V170 H130 V270 H86" stroke="#0A0A0C" stroke-width="10" fill="none" stroke-linejoin="round" stroke-linecap="round"/><path id="route" d="M290 122 V170 H130 V270 H86" stroke="#D8AE49" stroke-width="5" fill="none" stroke-linejoin="round" stroke-linecap="round"/><circle cx="86" cy="270" r="13" fill="#F3F1EA" opacity=".16"/><circle cx="86" cy="270" r="6.5" fill="#F3F1EA" stroke="#0A0A0C" stroke-width="2.5"/><g transform="translate(86 245)"><rect x="-27" y="-11" width="54" height="21" rx="10.5" fill="#F3F1EA"/><text y="3.8" text-anchor="middle" fill="#0A0A0C" font-size="10.5" font-weight="600" font-family="Inter,sans-serif">Pickup</text></g><g transform="translate(206 122)"><rect x="-58" y="-11" width="116" height="22" rx="11" fill="#0F0F11" stroke="#4C3E20"/><text y="3.8" text-anchor="middle" fill="#F3D27A" font-size="10.5" font-weight="600" font-family="Inter,sans-serif">Fastest route &#183; 1.9 mi</text></g><g id="car" transform="translate(290 122)"><circle r="17" fill="#F3D27A" opacity=".14"><animate attributeName="r" values="15;21;15" dur="2.4s" repeatCount="indefinite"/></circle><circle r="15" fill="#1E1A10"/><rect x="-8" y="-12" width="16" height="24" rx="5" fill="#F3D27A" stroke="#0A0A0C" stroke-width="1.5"/><rect x="-5.5" y="3" width="11" height="5" rx="1.5" fill="#0A0A0C" opacity=".6"/><rect x="-5.5" y="-8.5" width="11" height="3" rx="1.2" fill="#0A0A0C" opacity=".35"/></g></svg></div>
+  <div style="position:absolute;top:0;left:0;right:0"><div style="height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:14px;font-weight:600">
+    <span>9:41</span>
+    <span style="display:flex;gap:6px;align-items:center">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="#F3F1EA" stroke-width="1.6"><path d="M1 11h2M6 11V8M10 11V5M14 11V2"/></svg>
+      <svg width="24" height="12" viewBox="0 0 24 12" fill="none" stroke="#F3F1EA" stroke-width="1.4"><rect x="1" y="1" width="19" height="10" rx="3"/><rect x="3" y="3" width="13" height="6" rx="1.5" fill="#F3F1EA"/></svg>
+    </span>
+  </div></div>
+  <div style="position:absolute;top:56px;left:20px;right:20px;display:flex;justify-content:space-between">
+    <button class="iconbtn" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3F1EA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+    <span class="chip" style="height:28px;background:#0F0F11"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>BA286 departs 14:20 &#183; on time</span>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:388px;background:#0F0F11;border-top:1px solid #272729;border-radius:24px 24px 0 0;padding:10px 20px 0;box-sizing:border-box">
+    <div style="width:40px;height:4px;border-radius:4px;background:#3A3A3D;margin:0 auto 14px"></div>
+    <div class="row" style="justify-content:space-between">
+      <div><div class="h" style="font-size:22px;font-weight:700">Arriving in <span class="gold">6 min</span></div><div style="font-size:13px;color:#F3D27A;margin-top:2px;display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg>(Driver is using the fastest route)</div><div class="muted" style="font-size:13px;margin-top:2px">Pickup at 11:30 &#183; Home, Cheltenham</div></div>
+    </div>
+    <div class="card row" style="margin-top:14px;padding:12px 14px">
+      <div style="width:48px;height:48px;border-radius:999px;background:#1E1E22;border:1.5px solid #D8AE49;display:flex;align-items:center;justify-content:center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+      <div style="flex:1"><div style="font-weight:600;font-size:15px">Sam (demo)</div><div class="muted" style="font-size:12px">Black Mercedes E-Class</div><div class="row" style="gap:4px;font-size:12px;margin-top:2px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg><span>4.9</span></div></div>
+      <div style="padding:6px 10px;border-radius:8px;background:#F3F1EA;color:#0A0A0C;font:700 14px Outfit,sans-serif;letter-spacing:1px">AB12 CDE</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px">
+      <button class="card" style="padding:12px 0;color:#F3F1EA;font:500 12px Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>Call</button>
+      <button class="card" style="padding:12px 0;color:#F3F1EA;font:500 12px Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Message</button>
+      <button class="card" style="padding:12px 0;color:#F3F1EA;font:500 12px Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>Share trip</button>
+      <button class="card" style="padding:12px 0;color:#FF8A80;border-color:#5A2A27;font:600 12px Inter,sans-serif;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF8A80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>SOS</button>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:14px;text-align:center">Calls and messages use a private number. Your PIN to start the trip: <span style="color:#F3F1EA;font-weight:600">4 8 1 7</span></div>
+  </div>
+</div>
+</section>
+<section class="screen" id="s-delay" data-title="Delay alert" hidden>
+<div class="r">
+  <div style="height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:14px;font-weight:600">
+    <span>9:41</span>
+    <span style="display:flex;gap:6px;align-items:center">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="#F3F1EA" stroke-width="1.6"><path d="M1 11h2M6 11V8M10 11V5M14 11V2"/></svg>
+      <svg width="24" height="12" viewBox="0 0 24 12" fill="none" stroke="#F3F1EA" stroke-width="1.4"><rect x="1" y="1" width="19" height="10" rx="3"/><rect x="3" y="3" width="13" height="6" rx="1.5" fill="#F3F1EA"/></svg>
+    </span>
+  </div>
+  <div class="top"><button class="iconbtn" aria-label="Back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3F1EA" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+    <div><div class="h" style="font-weight:600;font-size:17px">Trip updates</div><div class="muted" style="font-size:12px">Heathrow T5 to Cheltenham &#183; Sat 7 Nov</div></div></div>
+  <div class="muted" style="padding:14px 20px 0;font-size:13px;line-height:1.45">We tell you first, before you have to ring and ask.</div>
+  <div class="card" style="margin:12px 20px 0;padding:16px">
+    <div class="row" style="gap:10px"><span style="width:36px;height:36px;border-radius:10px;background:rgba(243,210,122,.12);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span>
+    <span style="font-size:12px;font-weight:600;letter-spacing:1px;color:#F3D27A">FLIGHT DELAYED</span><span class="muted" style="margin-left:auto;font-size:12px">now</span></div>
+    <div class="h" style="font-size:18px;font-weight:600;margin-top:12px;line-height:1.3">Flight BA286 is 40 min late. Your driver will wait.</div>
+    <div class="muted" style="font-size:14px;margin-top:6px;line-height:1.45">New landing time 15:00. Sam (demo) will meet you in arrivals at 15:10 with your name board. No extra charge.</div>
+    <div class="row" style="margin-top:14px;gap:8px"><button class="btn btn-gold" style="flex:1;height:42px;font-size:14px">Okay</button><button class="btn btn-ghost" style="flex:1;height:42px;font-size:14px">View flight</button></div></div>
+  <div class="card" style="margin:12px 20px 0;padding:16px">
+    <div class="row" style="gap:10px"><span style="width:36px;height:36px;border-radius:10px;background:rgba(243,210,122,.12);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F0A45B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>
+    <span style="font-size:12px;font-weight:600;letter-spacing:1px;color:#F0A45B">DRIVER RUNNING LATE</span><span class="muted" style="margin-left:auto;font-size:12px">now</span></div>
+    <div class="h" style="font-size:18px;font-weight:600;margin-top:12px;line-height:1.3">Your driver is 8 min late (traffic on the M4).</div>
+    <div class="muted" style="font-size:14px;margin-top:6px;line-height:1.45">New arrival 15:18. Your 60 minutes of free waiting start when the driver arrives, not before.</div>
+    <div class="row" style="margin-top:14px;gap:8px"><button class="btn btn-gold" style="flex:1;height:42px;font-size:14px">Okay</button><button class="btn btn-ghost" style="flex:1;height:42px;font-size:14px">Call driver</button></div></div>
+  <div class="card" style="margin:12px 20px 0;padding:14px 16px">
+    <div class="h" style="font-weight:600;font-size:14px;margin-bottom:10px">Timeline</div>
+    <div class="row" style="font-size:13px;gap:10px"><span style="width:8px;height:8px;border-radius:9px;background:#F3D27A"></span><span style="flex:1">Flight lands</span><span class="muted"><s>14:20</s></span><span class="gold" style="font-weight:600">15:00</span></div>
+    <div class="row" style="font-size:13px;gap:10px;margin-top:8px"><span style="width:8px;height:8px;border-radius:9px;background:#F3D27A"></span><span style="flex:1">Driver in arrivals</span><span class="muted"><s>15:10</s></span><span class="gold" style="font-weight:600">15:18</span></div>
+    <div class="row" style="font-size:13px;gap:10px;margin-top:8px"><span style="width:8px;height:8px;border-radius:9px;background:#3A3A3D"></span><span style="flex:1">Free waiting until</span><span class="gold" style="font-weight:600">16:18</span></div>
+  </div>
+  <nav class="nav"><button class=""><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>Book</button><button class="on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg>Trips</button><button class=""><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>Business</button><button class=""><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Account</button></nav>
+</div>
+</section>
+<section class="screen" id="s-receipt" data-title="Receipt, rating, tip" hidden>
+<div class="r">
+  <div style="height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:14px;font-weight:600">
+    <span>9:41</span>
+    <span style="display:flex;gap:6px;align-items:center">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="#F3F1EA" stroke-width="1.6"><path d="M1 11h2M6 11V8M10 11V5M14 11V2"/></svg>
+      <svg width="24" height="12" viewBox="0 0 24 12" fill="none" stroke="#F3F1EA" stroke-width="1.4"><rect x="1" y="1" width="19" height="10" rx="3"/><rect x="3" y="3" width="13" height="6" rx="1.5" fill="#F3F1EA"/></svg>
+    </span>
+  </div>
+  <div style="padding:24px 20px 0;text-align:center">
+    <div style="width:64px;height:64px;border-radius:999px;margin:0 auto;background:rgba(243,210,122,.12);display:flex;align-items:center;justify-content:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#F3D27A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></div>
+    <div class="h" style="font-size:24px;font-weight:700;margin-top:14px">You have arrived</div>
+    <div class="muted" style="font-size:14px;margin-top:4px">Heathrow Terminal 5 &#183; 13:12</div>
+  </div>
+  <div class="card" style="margin:20px 20px 0;padding:16px">
+    <div class="row" style="justify-content:space-between;font-size:14px"><span class="muted">Fixed fare, Executive Saloon</span><span>&#163;189.00</span></div>
+    <div class="row" style="justify-content:space-between;font-size:14px;margin-top:8px"><span class="muted">Waiting time</span><span>&#163;0.00</span></div>
+    <div class="row" style="justify-content:space-between;font-size:14px;margin-top:8px"><span class="muted">Tip</span><span id="tipval">&#163;10.00</span></div>
+    <div style="height:1px;background:#272729;margin:12px 0"></div>
+    <div class="row" style="justify-content:space-between"><span class="h" style="font-weight:600">Total, phone wallet</span><span id="tiptotal" class="h gold" style="font-weight:700;font-size:18px">&#163;199.00</span></div>
+  </div>
+  <div style="padding:22px 20px 0;text-align:center">
+    <div style="font-size:15px;font-weight:600">How was Sam (demo)?</div>
+    <div style="display:flex;justify-content:center;gap:10px;margin-top:10px"><button aria-label="1 stars" style="background:none;border:0;cursor:pointer;padding:0"><svg width="34" height="34" viewBox="0 0 24 24" fill="#F3D27A" stroke="#F3D27A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg></button><button aria-label="2 stars" style="background:none;border:0;cursor:pointer;padding:0"><svg width="34" height="34" viewBox="0 0 24 24" fill="#F3D27A" stroke="#F3D27A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg></button><button aria-label="3 stars" style="background:none;border:0;cursor:pointer;padding:0"><svg width="34" height="34" viewBox="0 0 24 24" fill="#F3D27A" stroke="#F3D27A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg></button><button aria-label="4 stars" style="background:none;border:0;cursor:pointer;padding:0"><svg width="34" height="34" viewBox="0 0 24 24" fill="#F3D27A" stroke="#F3D27A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg></button><button aria-label="5 stars" style="background:none;border:0;cursor:pointer;padding:0"><svg width="34" height="34" viewBox="0 0 24 24" fill="#F3D27A" stroke="#F3D27A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg></button></div>
+  </div>
+  <div style="padding:18px 20px 0;display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:15px;font-weight:600">Add a tip</div><div class="muted" style="font-size:12px">100% goes to Sam (demo)</div></div><div role="group" aria-label="Tip amount" style="display:flex;gap:8px;padding:10px 20px 0"><button class="tipb" data-tip="5" style="flex:1;height:44px;border-radius:12px;border:1.5px solid #272729;background:#121214;color:#F3F1EA;font:600 14px Inter,sans-serif;cursor:pointer">&#163;5</button><button class="tipb" data-tip="10" style="flex:1;height:44px;border-radius:12px;border:1.5px solid #D8AE49;background:#17140C;color:#F3F1EA;font:600 14px Inter,sans-serif;cursor:pointer">&#163;10</button><button class="tipb" data-tip="15" style="flex:1;height:44px;border-radius:12px;border:1.5px solid #272729;background:#121214;color:#F3F1EA;font:600 14px Inter,sans-serif;cursor:pointer">&#163;15</button><button class="tipb" data-tip="other" style="flex:1;height:44px;border-radius:12px;border:1.5px solid #272729;background:#121214;color:#F3F1EA;font:600 14px Inter,sans-serif;cursor:pointer">Other</button></div><label id="tipother" hidden style="margin:8px 20px 0;display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:12px;border:1px solid #4C3E20;background:#121214;font-size:14px"><span class="muted">Your tip &#163;</span><input type="number" inputmode="decimal" min="0" max="200" step="1" value="20" style="flex:1;min-width:0;background:none;border:0;outline:none;color:#F3F1EA;font:600 14px Inter,sans-serif"></label>
+  <div style="position:absolute;left:20px;right:20px;bottom:30px;display:flex;flex-direction:column;gap:10px">
+    <button class="btn btn-gold">Book your return</button>
+    <button class="btn btn-ghost">Rebook this trip</button>
+    <div class="muted" style="text-align:center;font-size:12px">Receipt sent to your email</div>
+  </div>
+</div>
+</section>
+<section class="screen" id="s-chat" data-title="Ask our assistant" hidden>
+<div class="r">
+  <div style="height:44px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:14px;font-weight:600">
+    <span>9:41</span>
+    <span style="display:flex;gap:6px;align-items:center">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none" stroke="#F3F1EA" stroke-width="1.6" aria-hidden="true"><path d="M1 11h2M6 11V8M10 11V5M14 11V2"/></svg>
+      <svg width="24" height="12" viewBox="0 0 24 12" fill="none" stroke="#F3F1EA" stroke-width="1.4" aria-hidden="true"><rect x="1" y="1" width="19" height="10" rx="3"/><rect x="3" y="3" width="13" height="6" rx="1.5" fill="#F3F1EA"/></svg>
+    </span>
+  </div>
+
+  <div style="flex:none;display:flex;align-items:center;gap:12px;padding:6px 16px 12px;border-bottom:1px solid #272729">
+    <button aria-label="Back" style="width:40px;height:40px;border-radius:999px;background:#0F0F11;border:1px solid #272729;display:flex;align-items:center;justify-content:center;cursor:pointer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F3F1EA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+    </button>
+    <div style="width:40px;height:40px;border-radius:999px;background:linear-gradient(180deg,#F6DB8A,#C9A140);display:flex;align-items:center;justify-content:center;flex:none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1405" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/><path d="M19 15l.8 1.7 1.7.8-1.7.8L19 20l-.8-1.7-1.7-.8 1.7-.8z"/></svg>
+    </div>
+    <div style="flex:1">
+      <div class="h" style="font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px">Connect4Ride assistant <span class="tag">AI</span></div>
+      <div class="muted" style="font-size:12px;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:999px;background:#F3D27A"></span>Replies in seconds, 24/7</div>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;gap:10px;padding:16px 16px 8px">
+    <div class="muted" style="align-self:center;font-size:11px;letter-spacing:1px">TODAY 18:42</div>
+    <div class="bot">Hi Alex. I can quote a fare, check your flight, change a booking or put you through to our team.</div>
+    <div class="me">How much to Heathrow for 5 of us with big cases?</div>
+    <div class="bot" style="padding:0;overflow:hidden">
+      <div style="padding:10px 12px 8px">An MPV fits 5 people and their luggage:</div>
+      <div style="margin:0 10px;padding:10px 12px;border-radius:12px;background:#0A0A0C;border:1px solid #4C3E20;display:flex;justify-content:space-between;align-items:center">
+        <span><span class="h" style="display:block;font-weight:600;font-size:15px">Cheltenham to Heathrow</span><span class="muted" style="font-size:12px">6-seat MPV &#183; about 1h 45m</span></span>
+        <span class="h" style="font-size:20px;font-weight:700;color:#F3D27A">&#163;214</span>
+      </div>
+      <div class="muted" style="padding:8px 12px 0;font-size:12px">Fixed price. Meet &amp; greet, flight monitoring and 60 min free waiting included.</div>
+      <div style="padding:10px 12px 12px">
+        <button style="width:100%;height:40px;border-radius:999px;background:linear-gradient(180deg,#F6DB8A,#C9A140);color:#1A1405;border:0;font:600 14px Inter,sans-serif;cursor:pointer">Book this ride</button>
+      </div>
+    </div>
+    <div class="me">If my flight home lands late, will the driver still be there?</div>
+    <div class="bot">Yes. Add your flight number and we track it live. Your driver is sent for the real landing time, and your 60 free minutes start once you land. No extra charge for a delay.</div>
+    <div class="bot" style="display:flex;align-items:center;gap:8px;padding:8px 12px">
+      <span style="display:inline-flex;gap:3px" aria-label="Assistant is typing" role="img"><span style="width:6px;height:6px;border-radius:999px;background:#A9A69D"></span><span style="width:6px;height:6px;border-radius:999px;background:#A9A69D;opacity:.7"></span><span style="width:6px;height:6px;border-radius:999px;background:#A9A69D;opacity:.4"></span></span>
+    </div>
+  </div>
+
+  <div style="flex:none;display:flex;gap:8px;padding:8px 16px;overflow:hidden">
+    <button class="qr">Add flight</button>
+    <button class="qr">Change time</button>
+    <button class="qr" style="color:#F3F1EA;border-color:#272729">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#25D366" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21l1.6-4.6A8.5 8.5 0 1 1 7.7 19.6z"/></svg>
+      Talk to a person
+    </button>
+  </div>
+
+  <div style="flex:none;padding:8px 16px 26px;border-top:1px solid #272729;background:#0F0F11">
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="position:relative;flex:1;display:flex;align-items:center;height:46px;padding:0 14px;border-radius:999px;background:#121214;border:1px solid #272729">
+        <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</span>
+        <input type="text" placeholder="Ask about fares, flights or a booking" style="flex:1;min-width:0;background:none;border:0;outline:none;color:#F3F1EA;font:400 14px Inter,sans-serif">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A9A69D" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </label>
+      <button aria-label="Send" style="width:46px;height:46px;border-radius:999px;background:linear-gradient(180deg,#F6DB8A,#C9A140);border:0;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1405" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+    <div class="muted" style="text-align:center;font-size:11px;margin-top:8px">AI assistant. Ask for a person at any time.</div>
+  </div>
+</div>
+</section>
+<div id="ov" hidden><div id="ovbg"></div><div id="ovp" role="dialog" aria-modal="true" aria-labelledby="ovt"><div id="ovh"><b id="ovt"></b><button id="ovx" aria-label="Close">&times;</button></div><div id="ovb"></div></div></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+</div></div>
+<div id="bar"><button id="prev" aria-label="Previous screen">&#8249;</button><div><div id="label"></div><div id="dots"><i></i><i></i><i></i><i></i><i></i><i></i></div></div><button id="next" aria-label="Next screen">&#8250;</button></div>
+</div>
+<div id="hint">Tap the buttons, or swipe for the next screen</div>
+<script>
+(function(){
+  var ids=["main","quote","trip","delay","receipt","chat"], cur=0;
+  var stage=document.getElementById("stage"), wrap=document.getElementById("wrap"), phone=document.getElementById("phone");
+  var screens=ids.map(function(i){return document.getElementById("s-"+i)});
+  // mark the mock status bar (9:41) so it can be hidden on a real phone
+  screens.forEach(function(s){var r=s.querySelector(".r"); if(r&&r.firstElementChild&&/9:41/.test(r.firstElementChild.textContent)) r.firstElementChild.classList.add("sb");});
+  function fit(){
+    var vv=window.visualViewport, W=Math.min(document.documentElement.clientWidth||9999, vv?vv.width:9999, window.innerWidth||9999), H=stage.clientHeight, s, h;
+    var mob=W<600||(window.matchMedia&&matchMedia("(pointer:coarse)").matches&&Math.min(screen.width,screen.height)<600);
+    document.body.classList.toggle("mob",mob); document.body.classList.toggle("desk",!mob);
+    if(mob){ s=W/390; h=H/s; }
+    else { h=844; s=Math.min(1,(H-90)/844,(W-48)/390); }
+    phone.style.height=h+"px"; phone.style.transform="scale("+s+")";
+    wrap.style.width=(390*s)+"px"; wrap.style.height=(h*s)+"px";
+  }
+  function show(n,back){
+    if(n<0||n>=ids.length) return;
+    screens[cur].hidden=true; cur=n; var s=screens[n];
+    s.classList.toggle("back",!!back); s.hidden=false;
+    document.getElementById("label").innerHTML="<b>"+(n+1)+" of 6</b> &middot; "+s.dataset.title;
+    document.getElementById("prev").disabled=n===0; document.getElementById("next").disabled=n===ids.length-1;
+    document.querySelectorAll("#dots i").forEach(function(d,i){d.className=i===n?"on":""});
+    try{history.replaceState(null,"","#"+ids[n])}catch(e){}
+  }
+  function go(id,back){show(ids.indexOf(id),back)}
+  window.__go=go; window.__cur=function(){return ids[cur]};
+  // wire the app's own buttons so a customer can tap through the journey
+  var rules=[
+    ["main",function(b,t){return t==="Now"||b.classList.contains("pick")||/Book again/.test(t)},"quote"],
+    ["main",function(b,t){return b.getAttribute("aria-label")==="Ask our assistant"},"chat"],
+    ["quote",function(b,t){return /Confirm fixed fare/.test(t)},"trip"],
+    ["delay",function(b,t){return t==="Okay"},"receipt"],
+    ["receipt",function(b,t){return /Book your return|Rebook this trip/.test(t)},"quote"],
+    ["chat",function(b,t){return /Book this ride/.test(t)},"quote"]
+  ];
+  var backTo={quote:"main",trip:"quote",delay:"trip",receipt:"delay",chat:"main"};
+  screens.forEach(function(s,i){
+    var id=ids[i];
+    // the "Book again" row on the home screen is a card, make it tappable
+    s.querySelectorAll(".card").forEach(function(c){ if(c.tagName!=="BUTTON"&&/Book again/.test(c.textContent)){c.classList.add("tap");c.setAttribute("role","button");c.tabIndex=0;c.addEventListener("click",function(){go("quote")});}});
+    s.querySelectorAll("button").forEach(function(b){
+      var t=b.textContent.replace(/\s+/g," ").trim();
+      if(b.getAttribute("aria-label")==="Back"&&backTo[id]){b.addEventListener("click",function(){go(backTo[id],true)});return;}
+      if(b.closest(".nav")){ if(/^Book$/.test(t)) b.addEventListener("click",function(){go("main",true)}); if(/^Trips$/.test(t)) b.addEventListener("click",function(){go("trip")}); return; }
+      rules.forEach(function(r){ if(r[0]===id&&r[1](b,t)) b.addEventListener("click",function(){go(r[2])}); });
+    });
+    s.querySelectorAll("form").forEach(function(f){f.addEventListener("submit",function(e){e.preventDefault()})});
+  });
+  // tip picker on the receipt: the chosen tip goes into the Tip line and the total
+  (function(){
+    var r=document.getElementById("s-receipt"); if(!r) return;
+    var bs=r.querySelectorAll(".tipb"), val=r.querySelector("#tipval"), tot=r.querySelector("#tiptotal"), box=r.querySelector("#tipother"), inp=box&&box.querySelector("input"), FARE=189;
+    function money(n){return "\u00a3"+n.toFixed(2)}
+    function set(n){ n=Math.max(0,Math.min(200,+n||0)); val.textContent=money(n); tot.textContent=money(FARE+n); }
+    function pick(b){
+      bs.forEach(function(x){var on=x===b; x.style.borderColor=on?"#D8AE49":"#272729"; x.style.background=on?"#17140C":"#121214"; x.setAttribute("aria-pressed",on)});
+      var other=b.dataset.tip==="other"; box.hidden=!other;
+      set(other?inp.value:b.dataset.tip);
+    }
+    bs.forEach(function(b){b.addEventListener("click",function(){pick(b)})});
+    if(inp) inp.addEventListener("input",function(){set(inp.value)});
+    pick(r.querySelector('.tipb[data-tip="10"]'));
+  })();
+  // swipe between screens on a phone
+  var x0=null,y0=0;
+  phone.addEventListener("touchstart",function(e){ if(e.touches.length>1||e.target.closest("#mapsvg,input,#chatlist,#qrrow,#ov,.mapctl")){x0=null;return;} x0=e.touches[0].clientX;y0=e.touches[0].clientY},{passive:true});
+  phone.addEventListener("touchend",function(e){ if(x0===null) return; var dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0; x0=null;
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5){ dx<0?show(cur+1):show(cur-1,true); } },{passive:true});
+  document.getElementById("prev").addEventListener("click",function(){show(cur-1,true)});
+  document.getElementById("next").addEventListener("click",function(){show(cur+1)});
+  document.addEventListener("keydown",function(e){ if(e.key==="ArrowRight") show(cur+1); if(e.key==="ArrowLeft") show(cur-1,true); });
+  window.addEventListener("resize",fit); window.addEventListener("orientationchange",function(){setTimeout(fit,200)});
+  if(window.visualViewport) visualViewport.addEventListener("resize",fit);
+  fit(); setTimeout(fit,100); setTimeout(fit,500); setTimeout(fit,1500);
+  var start=ids.indexOf((location.hash||"").slice(1)); show(start<0?0:start);
+  var h=document.getElementById("hint"); setTimeout(function(){h.classList.add("gone")},4200);
+})();
+</script>
+<script>(function(){
+"use strict";
+// ---------- helpers ----------
+var phone=document.getElementById("phone");
+function $(s,r){return (r||document).querySelector(s)}
+function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))}
+function scr(id){return document.getElementById("s-"+id)}
+function norm(s){return String(s||"").toLowerCase().replace(/[‘’]/g,"'").replace(/\s+/g," ").trim()}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function txt(el){return (el.textContent||"").replace(/\s+/g," ").trim()}
+function leaves(root,re){return $$("*",root).filter(function(e){return !e.children.length&&re.test(txt(e))})}
+function replaceText(root,re,str){
+  var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null), n;
+  while((n=w.nextNode())){ if(re.test(n.nodeValue)) n.nodeValue=n.nodeValue.replace(re,str); re.lastIndex=0; }
+}
+function tappable(el,fn){
+  if(el.tagName!=="BUTTON"){ el.setAttribute("role","button"); el.tabIndex=0; el.style.cursor="pointer";
+    el.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){e.preventDefault(); el.click();} }); }
+  el.addEventListener("click",fn);
+}
+var ov=$("#ov"), ovt=$("#ovt"), ovb=$("#ovb"), toastEl=$("#toast"), sheetTimer=null, toastTimer=null;
+function sheet(title,html){
+  ovt.textContent=title; ovb.innerHTML=html; ov.hidden=false; ovb.scrollTop=0;
+  setTimeout(function(){ var f=$("#ovx"); try{f.focus({preventScroll:true})}catch(e){} },0);
+  return ovb;
+}
+function closeSheet(){ if(sheetTimer){clearInterval(sheetTimer); sheetTimer=null;} ov.hidden=true; }
+window.__closeSheet=closeSheet;
+$("#ovx").addEventListener("click",closeSheet);
+$("#ovbg").addEventListener("click",closeSheet);
+function toast(msg){ toastEl.textContent=msg; toastEl.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(function(){toastEl.hidden=true},2200); }
+window.__toast=toast;
+
+// keys typed into a field (or while a sheet is open) must not flip screens via the base arrow-key handler
+document.body.addEventListener("keydown",function(e){
+  var inField=e.target.closest&&e.target.closest("input,textarea");
+  if(e.key==="Escape"&&!ov.hidden){ closeSheet(); e.stopPropagation(); return; }
+  if(inField||!ov.hidden) e.stopPropagation();
+});
+
+// safety net: a button that changes nothing still answers, so no tap is ever dead
+var mutated=false;
+new MutationObserver(function(){mutated=true}).observe(phone,{subtree:true,childList:true,attributes:true,characterData:true});
+phone.addEventListener("click",function(e){
+  var b=e.target.closest("button,[role=button]"); if(!b||b.disabled) return;
+  var before=window.__cur(); mutated=false;
+  setTimeout(function(){
+    if(!mutated&&window.__cur()===before){
+      var label=b.getAttribute("aria-label")||txt(b)||"button";
+      window.__fallback=label; toast("Demo: "+label);
+    }
+  },0);
+},true);
+
+// ---------- places and fares ----------
+var PLACES=[
+  {re:/\b(heathrow|lhr|t5|terminal 5)\b/, name:"Heathrow T5", mi:96},
+  {re:/\b(gatwick|lgw)\b/, name:"Gatwick North", mi:113},
+  {re:/\b(birmingham|bhx)\b/, name:"Birmingham Airport", mi:56},
+  {re:/\b(bristol|brs)\b/, name:"Bristol Airport", mi:56},
+  {re:/\b(southampton|cruise)\b/, name:"Southampton cruise terminal", mi:95},
+  {re:/\b(manchester|man airport)\b/, name:"Manchester Airport", mi:140},
+  {re:/\b(stansted|stn)\b/, name:"Stansted", mi:130},
+  {re:/\b(luton|ltn)\b/, name:"Luton", mi:95},
+  {re:/\b(dover)\b/, name:"Dover port", mi:190},
+  {re:/\b(portsmouth)\b/, name:"Portsmouth ferry port", mi:110},
+  {re:/\b(paddington)\b/, name:"London Paddington", mi:100},
+  {re:/\b(east midlands|ema)\b/, name:"East Midlands Airport", mi:80},
+  {re:/\b(cardiff)\b/, name:"Cardiff", mi:60}
+];
+var ALL11=["Heathrow T5","Gatwick North","Birmingham Airport","Bristol Airport","Stansted","Luton","Manchester Airport","East Midlands Airport","Southampton cruise terminal","Dover port","Portsmouth ferry port"];
+var VEH={saloon:{name:"Executive Saloon",seats:4,add:0},mpv:{name:"6-seat MPV",seats:6,add:25},minibus:{name:"8-seat Minibus",seats:8,add:50}};
+function placeByName(n){for(var i=0;i<PLACES.length;i++) if(PLACES[i].name===n) return PLACES[i]; return null}
+function resolve(t){t=norm(t); for(var i=0;i<PLACES.length;i++) if(PLACES[i].re.test(t)) return PLACES[i]; return null}
+function hash(s){var h=0; for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h)}
+function titleCase(s){return s.replace(/\b\w/g,function(c){return c.toUpperCase()}).slice(0,34)}
+function resolveAddress(raw){
+  var p=resolve(raw); if(p) return p;
+  var clean=String(raw).replace(/^\s*to\s+/i,"").replace(/[?.!]+$/,"").trim();
+  var pc=/^[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}$/i.test(clean);
+  var mi=/london|\b(sw|se|nw|ne|w|e|n|ec|wc)\d/i.test(clean)?96+hash(norm(clean))%9:20+hash(norm(clean))%161;
+  var name=pc?clean.toUpperCase():titleCase(clean).replace(/\b[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}\b/gi,function(s){return s.toUpperCase()});
+  return {name:name, mi:mi, custom:true};
+}
+function fare(p,v){return Math.round(1.75*p.mi+21)+VEH[v||"saloon"].add}
+function dur(mi){var m=Math.round(mi*1.1/5)*5, h=Math.floor(m/60), r=m%60; return h?(h+"h"+(r?" "+r+"m":"")):(r+" min")}
+function whenLabel(w){ if(!w) return ""; if(w.now) return "Today, pickup in about 8 min"; return [w.day,w.time].filter(Boolean).join(", ") }
+
+// ---------- quote screen state ----------
+var state={dest:placeByName("Heathrow T5"), vehicle:"saloon", when:{day:"Fri 30 Oct", time:"11:30"}, flight:"BA286"};
+var Q=scr("quote");
+var qTitle=leaves(Q,/^Cheltenham to /)[0], qSub=leaves(Q,/miles/)[0];
+var rows=$$("button.row",Q).map(function(r){
+  var t=txt(r), v=/Saloon/.test(t)?"saloon":/MPV/.test(t)?"mpv":/Minibus/.test(t)?"minibus":"wc";
+  return {el:r, v:v, price:leaves(r,/^£\d/)[0]};
+});
+function look(r){var cs=getComputedStyle(r.el), c=r.el.lastElementChild; return {border:cs.borderTopWidth+" "+cs.borderTopStyle+" "+cs.borderTopColor, bg:cs.backgroundColor, cs:c?c.getAttribute("style"):"", ch:c?c.innerHTML:""}}
+var rowOn=null,rowOff=null;
+rows.forEach(function(r){ if(r.v==="saloon") rowOn=look(r); if(r.v==="mpv") rowOff=look(r); });
+var confirmBtn=$$("button",Q).filter(function(b){return /Confirm fixed fare/.test(txt(b))})[0];
+function renderQuote(){
+  var p=state.dest;
+  if(qTitle) qTitle.textContent="Cheltenham to "+p.name;
+  if(qSub) qSub.textContent=p.mi+" miles · about "+dur(p.mi)+" · "+whenLabel(state.when);
+  rows.forEach(function(r){
+    if(r.price&&r.v!=="wc") r.price.textContent="£"+fare(p,r.v);
+    if(r.v==="wc"||!rowOn) return;
+    var L=r.v===state.vehicle?rowOn:rowOff, c=r.el.lastElementChild;
+    r.el.style.border=L.border; r.el.style.background=L.bg; r.el.setAttribute("aria-pressed",r.v===state.vehicle);
+    if(c){c.setAttribute("style",L.cs); c.innerHTML=L.ch;}
+  });
+  if(confirmBtn) replaceText(confirmBtn,/£\d+/g,"£"+fare(p,state.vehicle));
+}
+function setDest(p){if(p){state.dest=p; renderQuote();}}
+function setVehicle(v){if(VEH[v]){state.vehicle=v; renderQuote();}}
+function setWhen(w){ if(!w) return; state.when=w.now?{now:true}:{day:w.day||(state.when.now?"Today":state.when.day), time:w.time||(state.when.now?"11:30":state.when.time)}; renderQuote(); }
+function setFlight(code){ var old=state.flight; if(!code||code===old) return; replaceText(phone,new RegExp(old,"g"),code); state.flight=code; }
+window.__state=state;
+rows.forEach(function(r){
+  if(r.v==="wc"){ r.el.addEventListener("click",function(){
+    var b=sheet("Wheelchair accessible","<p>Rear-ramp vehicles with space for a wheelchair plus two passengers. The operator prices each trip on request.</p><p class='sub'>Trip: Cheltenham to "+esc(state.dest.name)+", "+esc(whenLabel(state.when))+"</p><button class='gbtn' id='wcreq'>Request a quote</button>");
+    $("#wcreq",b).addEventListener("click",function(){closeSheet(); toast("Demo only: in the real app this sends a request to the operator");});
+  }); return; }
+  r.el.addEventListener("click",function(){setVehicle(r.v)});
+});
+if(confirmBtn) confirmBtn.addEventListener("click",function(){
+  toast("Demo booking: "+state.dest.name+", £"+fare(state.dest,state.vehicle)+" fixed. No payment taken.");
+});
+// payment and flight rows
+var payLeaf=leaves(Q,/^(Apple Pay|Phone wallet)$/)[0], payRow=payLeaf&&payLeaf.closest(".row");
+if(payRow) tappable(payRow,function(){
+  var opts=["Phone wallet","Card ending 4242","Business account (invoice)","Cash to driver"];
+  var b=sheet("Payment method","<div class='list'>"+opts.map(function(o){return "<button class='lrow"+(o===txt(payLeaf)?" sel":"")+"'>"+esc(o)+"</button>"}).join("")+"</div><p class='sub'>Demo: no payment is taken.</p>");
+  $$(".lrow",b).forEach(function(x){x.addEventListener("click",function(){payLeaf.textContent=txt(x); closeSheet(); toast("Paying with "+txt(x)+" (demo)");})});
+});
+var flLeaf=leaves(Q,/^BA286$/)[0]||leaves(Q,/BA286/)[0], flRow=flLeaf&&(flLeaf.closest(".row")||flLeaf.parentElement);
+if(flRow) tappable(flRow,function(){
+  var b=sheet("Your flight","<p>We track this flight and move your pickup if it lands early or late.</p><input class='sinp' id='flin' value='"+esc(state.flight)+"' aria-label='Flight number' autocomplete='off'><button class='gbtn' id='flsave'>Save flight</button><p class='sub' id='flerr' hidden>Try a code like BA286 or EZY8123.</p>");
+  function save(){var c=$("#flin",b).value.toUpperCase().replace(/\s+/g,""); if(!/^[A-Z0-9]{2,3}\d{1,4}$/.test(c)){$("#flerr",b).hidden=false;return;} setFlight(c); closeSheet(); toast("Flight "+c+" added");}
+  $("#flsave",b).addEventListener("click",save);
+  $("#flin",b).addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();save();}});
+});
+
+// ---------- main screen ----------
+var M=scr("main");
+$$(".pick",M).forEach(function(b){b.addEventListener("click",function(){setDest(resolve(txt(b))); setVehicle("saloon");})});
+$$(".card",M).forEach(function(c){ if(/Book again/.test(txt(c))) c.addEventListener("click",function(){setDest(placeByName("Heathrow T5")); setVehicle("saloon");}); });
+$$("button",M).forEach(function(b){
+  var t=txt(b);
+  if(t==="Now") b.addEventListener("click",function(){setWhen({now:true})});
+  if(t==="Pre-book") b.addEventListener("click",prebook);
+});
+function prebook(){
+  var days=["Today","Tomorrow","Fri 30 Oct","Sat 31 Oct"], times=["04:00","06:30","09:00","11:30","14:00","18:00"];
+  var d=state.when.day||"Fri 30 Oct", tm=state.when.time||"11:30";
+  var b=sheet("Pre-book a ride","<div class='sub'>Day</div><div class='opts' id='pd'>"+days.map(function(x){return "<button class='opt"+(x===d?" sel":"")+"' aria-pressed='"+(x===d)+"'>"+x+"</button>"}).join("")+"</div><div class='sub'>Pickup time</div><div class='opts' id='pt'>"+times.map(function(x){return "<button class='opt"+(x===tm?" sel":"")+"' aria-pressed='"+(x===tm)+"'>"+x+"</button>"}).join("")+"</div><button class='gbtn' id='pdone'>Done</button>");
+  ["#pd","#pt"].forEach(function(g){ $$(".opt",$(g,b)).forEach(function(o){o.addEventListener("click",function(){ $$(".opt",$(g,b)).forEach(function(x){x.classList.toggle("sel",x===o); x.setAttribute("aria-pressed",x===o)}); });}); });
+  $("#pdone",b).addEventListener("click",function(){
+    var day=txt($("#pd .sel",b)), time=txt($("#pt .sel",b)); if(day==="Tomorrow") day="Mon 26 Oct"; if(day==="Today") day="Sun 25 Oct";
+    setWhen({day:day,time:time}); closeSheet(); window.__go("quote");
+  });
+}
+var bell=$("button[aria-label=Notifications]",M);
+if(bell) bell.addEventListener("click",function(){
+  sheet("Notifications","<div class='list'><div class='lrow'><span>Your driver Sam (demo) is 10 minutes away</span><span class='sub'>2m</span></div><div class='lrow'><span>Flight "+esc(state.flight)+" is on time</span><span class='sub'>1h</span></div><div class='lrow'><span>Receipt for your last trip: £189.00</span><span class='sub'>Mon</span></div></div><p class='sub'>Sample notifications for the demo.</p>");
+});
+var seeAll=leaves(M,/^See all 11$/)[0];
+if(seeAll) tappable(seeAll,function(){
+  var b=sheet("All destinations","<div class='list'>"+ALL11.map(function(n){var p=placeByName(n); return "<button class='lrow' data-n='"+esc(n)+"'><span>"+esc(n)+"</span><span class='sub'>from £"+fare(p,"saloon")+"</span></button>"}).join("")+"</div>");
+  $$(".lrow",b).forEach(function(x){x.addEventListener("click",function(){setDest(placeByName(x.dataset.n)); setVehicle("saloon"); closeSheet(); window.__go("quote");})});
+});
+// drop-off field takes a real address
+var ph=leaves(M,/^Airport, seaport, station or address$/)[0];
+if(ph){
+  var inp=document.createElement("input"); inp.id="dropin"; inp.type="text"; inp.placeholder="Airport, seaport, station or address"; inp.setAttribute("aria-label","Drop-off"); inp.autocomplete="off"; inp.setAttribute("enterkeyhint","go");
+  var go=document.createElement("button"); go.id="dropgo"; go.type="button"; go.textContent="Go";
+  var wrap=document.createElement("div"); wrap.className="dropwrap"; ph.replaceWith(wrap); wrap.append(inp,go);
+  function dropGo(){ var v=inp.value.trim(); if(!v){toast("Type where you're going, for example Heathrow or a postcode"); inp.focus(); return;} setDest(resolveAddress(v)); window.__go("quote"); }
+  go.addEventListener("click",function(e){e.preventDefault(); dropGo();});
+  inp.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault(); dropGo();}});
+}
+var pick=leaves(M,/^Current location, Cheltenham$/)[0];
+if(pick){ var pr=pick.closest("button,label,.row")||pick.parentElement; if(!pr.closest("button")) tappable(pr,function(){toast("Demo: pickup is set to Cheltenham. The real app takes any address or uses GPS.")}); }
+// Business and Account tabs on every nav
+$$(".nav button").forEach(function(b){
+  var t=txt(b);
+  if(t==="Business") b.addEventListener("click",function(){sheet("Business accounts","<p>Book for your team, pay by monthly invoice and keep every receipt in one place.</p><div class='list'><div class='lrow'><span>Monthly invoice</span><span class='sub'>Included</span></div><div class='lrow'><span>Cost centres and trip notes</span><span class='sub'>Included</span></div><div class='lrow'><span>Receipts emailed to finance</span><span class='sub'>Included</span></div></div><p class='sub'>Demo screen: no account is created.</p>")});
+  if(t==="Account") b.addEventListener("click",function(){var s=sheet("Account","<div class='lrow'><span><b>Alex</b><br><span class='sub'>Member since 2026</span></span></div><div class='list'><div class='lrow'><span>Saved places</span><span class='sub'>Home, Work</span></div><div class='lrow'><span>Payment methods</span><span class='sub'>2</span></div><div class='lrow'><span>Notifications</span><span class='sub'>On</span></div></div><button class='obtn' id='signout'>Sign out</button>"); $("#signout",s).addEventListener("click",function(){closeSheet(); toast("Demo: sign-out is switched off in the prototype");});});
+});
+
+// ---------- trip screen: draggable, pinch-zoom map ----------
+var T=scr("trip"), svg=$("svg[viewBox='0 0 390 520']",T);
+if(svg){
+  svg.id="mapsvg"; svg.style.touchAction="none"; var wrap=svg.parentElement; wrap.classList.add("mapwrap");
+  var grid=$("rect[fill='url(#tgrid)']",svg); if(grid){grid.setAttribute("x",-200);grid.setAttribute("y",-200);grid.setAttribute("width",790);grid.setAttribute("height",920);}
+  var VB0={x:0,y:0,w:390,h:520}, vb={x:0,y:0,w:390,h:520}, AR=520/390;
+  function apply(){
+    vb.w=Math.max(120,Math.min(600,vb.w)); vb.h=vb.w*AR;
+    vb.x=Math.max(-200,Math.min(590-vb.w,vb.x)); vb.y=Math.max(-200,Math.min(720-vb.h,vb.y));
+    svg.setAttribute("viewBox",vb.x.toFixed(1)+" "+vb.y.toFixed(1)+" "+vb.w.toFixed(1)+" "+vb.h.toFixed(1));
+  }
+  function zoomAt(cx,cy,f){
+    var r=svg.getBoundingClientRect(), fx=(cx-r.left)/r.width, fy=(cy-r.top)/r.height;
+    var px=vb.x+fx*vb.w, py=vb.y+fy*vb.h, nw=Math.max(120,Math.min(600,vb.w*f));
+    vb.w=nw; vb.h=nw*AR; vb.x=px-fx*vb.w; vb.y=py-fy*vb.h; apply();
+  }
+  window.__mapZoom=function(f){var r=svg.getBoundingClientRect(); zoomAt(r.left+r.width/2,r.top+r.height/2,f); return svg.getAttribute("viewBox")};
+  var pts={}, last=null;
+  function pair(){var k=Object.keys(pts); if(k.length<2) return null; var a=pts[k[0]], b=pts[k[1]]; return {d:Math.hypot(a.x-b.x,a.y-b.y), mx:(a.x+b.x)/2, my:(a.y+b.y)/2}}
+  svg.addEventListener("pointerdown",function(e){ pts[e.pointerId]={x:e.clientX,y:e.clientY}; try{svg.setPointerCapture(e.pointerId)}catch(_){} svg.classList.add("drag"); last=pair(); });
+  svg.addEventListener("pointermove",function(e){
+    var p=pts[e.pointerId]; if(!p) return;
+    var n=Object.keys(pts).length, r=svg.getBoundingClientRect();
+    if(n===1){ vb.x-=(e.clientX-p.x)*vb.w/r.width; vb.y-=(e.clientY-p.y)*vb.h/r.height; apply(); }
+    p.x=e.clientX; p.y=e.clientY;
+    if(n>=2){ var q=pair(); if(last&&q.d>0) zoomAt(q.mx,q.my,last.d/q.d); last=q; }
+  });
+  function up(e){ delete pts[e.pointerId]; last=pair(); if(!Object.keys(pts).length) svg.classList.remove("drag"); }
+  svg.addEventListener("pointerup",up); svg.addEventListener("pointercancel",up);
+  svg.addEventListener("wheel",function(e){e.preventDefault(); zoomAt(e.clientX,e.clientY,e.deltaY>0?1.15:1/1.15);},{passive:false});
+  svg.addEventListener("dblclick",function(e){zoomAt(e.clientX,e.clientY,0.6)});
+  var ctl=document.createElement("div"); ctl.className="mapctl";
+  ctl.innerHTML="<button aria-label='Zoom in'>+</button><button aria-label='Zoom out'>−</button><button aria-label='Recentre map'><svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='4'/><path d='M12 2v4M12 18v4M2 12h4M18 12h4'/></svg></button>";
+  wrap.appendChild(ctl);
+  var cb=$$("button",ctl);
+  cb[0].addEventListener("click",function(){window.__mapZoom(0.75)});
+  cb[1].addEventListener("click",function(){window.__mapZoom(1.33)});
+  cb[2].addEventListener("click",function(){vb={x:VB0.x,y:VB0.y,w:VB0.w,h:VB0.h}; apply();});
+  // car drives along the route
+  var car=$("#car",svg), P=[[290,122],[290,170],[130,170],[130,270],[86,270]];
+  var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(car&&!reduce){
+    var seg=[],tot=0; for(var i=1;i<P.length;i++){var l=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]); seg.push(l); tot+=l;}
+    (function tick(now){
+      var d=Math.min(1,(now%60000)/55000)*tot, i=0; while(i<seg.length-1&&d>seg[i]){d-=seg[i];i++;}
+      var f=seg[i]?d/seg[i]:0, x=P[i][0]+(P[i+1][0]-P[i][0])*f, y=P[i][1]+(P[i+1][1]-P[i][1])*f;
+      car.setAttribute("transform","translate("+x.toFixed(1)+" "+y.toFixed(1)+")");
+      requestAnimationFrame(tick);
+    })(0);
+  }
+}
+var DRIVER="Sam (demo)";
+function callSheet(){
+  var b=sheet("Calling "+DRIVER,"<div class='callbig'><div class='avatar'>S</div><div style='font-size:18px;font-weight:600'>"+DRIVER+"</div><div class='sub' id='ctime'>Connecting…</div></div><p class='sub'>Demo only: no call is placed. In the real app this is a masked call, so neither of you sees the other's number.</p><button class='obtn endcall' id='endc'>End call</button>");
+  var s=0; sheetTimer=setInterval(function(){s++; var el=$("#ctime",b); if(el) el.textContent="00:"+(s<10?"0":"")+s+" (demo)";},1000);
+  $("#endc",b).addEventListener("click",closeSheet);
+}
+function msgSheet(){
+  var quick=["I'm at the main entrance","Running 5 minutes late","I have an extra suitcase"];
+  var b=sheet("Message "+DRIVER,"<div class='msgs' id='mlog'></div><div class='opts'>"+quick.map(function(q){return "<button class='opt'>"+q+"</button>"}).join("")+"</div><div style='display:flex;gap:8px'><input class='sinp' id='min' placeholder='Write a message' aria-label='Message' autocomplete='off'><button class='gbtn' style='width:auto;padding:0 18px' id='msend'>Send</button></div>");
+  function add(t){ if(!t) return; var log=$("#mlog",b);
+    log.insertAdjacentHTML("beforeend","<div class='me' style='align-self:flex-end'>"+esc(t)+"<div class='demo-tag'>Demo: not sent</div></div>");
+    setTimeout(function(){ if(!ov.hidden&&$("#mlog")===log) log.insertAdjacentHTML("beforeend","<div class='bot' style='align-self:flex-start'>No problem, see you shortly.<div class='demo-tag'>Sample driver reply</div></div>"); },900);
+    $("#min",b).value=""; }
+  $$(".opt",b).forEach(function(o){o.addEventListener("click",function(){add(txt(o))})});
+  $("#msend",b).addEventListener("click",function(){add($("#min",b).value.trim())});
+  $("#min",b).addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault(); add(this.value.trim());}});
+}
+function shareTrip(){
+  var t="Track my Connect4Ride ride: Cheltenham to Heathrow T5, "+DRIVER+", AB12 CDE. (demo link: connect4ride.example/t/demo)";
+  toast("Copying trip link…");
+  function fallback(){ var b=sheet("Share trip","<p>Copy this and send it to someone:</p><textarea class='sinp' style='height:96px;padding:10px' readonly id='shtxt'>"+esc(t)+"</textarea>"); var a=$("#shtxt",b); a.focus(); a.select(); }
+  try{ navigator.clipboard.writeText(t).then(function(){toast("Trip link copied (demo link)")},fallback); }catch(e){ fallback(); }
+}
+function sosSheet(){
+  sheet("Emergency","<p><b>In an emergency, call 999 from your phone's keypad.</b></p><p>In the real app this screen shares your live location and trip details with the operator's safety team.</p><p class='sub'>Demo: this button doesn't call anyone.</p><button class='obtn' id='sosx'>Close</button>");
+  $("#sosx").addEventListener("click",closeSheet);
+}
+$$("button",T).forEach(function(b){
+  var t=txt(b);
+  if(/^Call$/.test(t)) b.addEventListener("click",callSheet);
+  else if(/^Message$/.test(t)) b.addEventListener("click",msgSheet);
+  else if(/^Share trip$/.test(t)) b.addEventListener("click",shareTrip);
+  else if(/^SOS$/.test(t)) b.addEventListener("click",sosSheet);
+});
+
+// ---------- delay screen ----------
+$$("button",scr("delay")).forEach(function(b){
+  var t=txt(b);
+  if(t==="View flight") b.addEventListener("click",function(){sheet("Flight "+state.flight,"<div class='list'><div class='lrow'><span>Departs Heathrow T5</span><span class='sub'>14:20</span></div><div class='lrow'><span>Status</span><span class='sub'>Delayed about 40 min</span></div><div class='lrow'><span>Your pickup</span><span class='sub'>Moved to match</span></div></div><p class='sub'>Sample flight data for the demo.</p>")});
+  if(t==="Call driver") b.addEventListener("click",callSheet);
+});
+
+// ---------- receipt stars ----------
+var stars=$$("#s-receipt button[aria-label$=' stars']").sort(function(a,b){return parseInt(a.getAttribute("aria-label"))-parseInt(b.getAttribute("aria-label"))});
+stars.forEach(function(s){ s.addEventListener("click",function(){
+  var n=parseInt(s.getAttribute("aria-label"));
+  stars.forEach(function(x,i){var on=i<n; x.classList.toggle("star-on",on); x.classList.toggle("star-off",!on); x.setAttribute("aria-pressed",on);});
+  toast("Thanks: you rated "+DRIVER+" "+n+" star"+(n>1?"s":""));
+}); });
+
+// ---------- chat assistant ----------
+var C=scr("chat");
+var typing=$("span[aria-label='Assistant is typing']",C); if(typing) typing.closest(".bot").remove();
+var list=$(".bot",C).parentElement; list.id="chatlist"; list.style.overflowY="auto";
+var qrrow=$(".qr",C).parentElement; qrrow.id="qrrow"; qrrow.style.overflowX="auto";
+var DEFAULT_QR=$$(".qr",qrrow).map(function(b){return b.outerHTML});
+var initialChat=list.innerHTML;
+var chatIn=$("input[type=text]",C), sendBtn=$("button[aria-label=Send]",C);
+var micSvg=$$("svg",C).filter(function(s){return s.querySelector("rect[x='9'][y='3']")})[0];
+var mic=null;
+if(micSvg){ mic=document.createElement("button"); mic.id="micbtn"; mic.type="button"; mic.setAttribute("aria-label","Speak your question (demo)"); micSvg.replaceWith(mic); mic.appendChild(micSvg); }
+// the original sample card books Heathrow in an MPV
+$$(".bot button",C).forEach(function(b){ if(/Book this ride/.test(txt(b))){ var c=b.closest(".bot"); b.addEventListener("click",function(){ setDest(resolve(txt(c))||state.dest); setVehicle(/MPV/.test(txt(c))?"mpv":/Minibus/.test(txt(c))?"minibus":"saloon"); }); } });
+
+var NUM={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};
+function people(t){
+  var n=0, m, re=/\b(\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(people|passengers|persons|adults|adult|kids|children|child|guests|of us|pax|travellers|travelers)\b/g;
+  while((m=re.exec(t))) n+=+m[1]||NUM[m[1]]||0;
+  if(!n&&(m=/\b(family|group|party) of (\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/.exec(t))) n=+m[2]||NUM[m[2]];
+  if(!n&&(m=/\bwe(?:'re| are) (\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\b/.exec(t))) n=+m[1]||NUM[m[1]];
+  return n;
+}
+function vehFor(n){return n>=7?"minibus":n>=5?"mpv":"saloon"}
+var DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MON={oct:9,october:9,nov:10,november:10,dec:11,december:11};
+function dayLabel(d){return DOW[d.getDay()]+" "+d.getDate()+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}
+function parseWhen(t){
+  var day=null, time=null, m, today=new Date(2026,9,25);
+  if(/\b(today|tonight)\b/.test(t)) day=dayLabel(today);
+  else if(/\btomorrow\b/.test(t)) day=dayLabel(new Date(2026,9,26));
+  else if((m=/\b(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(day|nesday|sday|urday|rsday)?\b/.exec(t))){ var k=DOW.map(function(x){return x.toLowerCase()}).indexOf(m[1].slice(0,3)); var d=new Date(2026,9,25+((k-0+7)%7||7)); day=dayLabel(d); }
+  if((m=/\b(\d{1,2})(?:st|nd|rd|th)?\s*(oct|october|nov|november|dec|december)\b/.exec(t))) day=dayLabel(new Date(2026,MON[m[2]],+m[1]));
+  if((m=/\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)\b/.exec(t))){ var h=(+m[1])%12+(m[3]==="pm"?12:0); time=(h<10?"0":"")+h+":"+(m[2]||"00"); }
+  else if((m=/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/.exec(t))) time=(m[1].length<2?"0":"")+m[1]+":"+m[2];
+  else if(/\bnoon\b/.test(t)) time="12:00"; else if(/\bmidnight\b/.test(t)) time="00:00";
+  return (day||time)?{day:day,time:time}:null;
+}
+var FLIGHT_RE=/\b(ba|u2|ezy|fr|ryr|vs|ls|ei|kl|af|lh|ek|qr|tom|w6|aa|dl|ua|tp|ib|vy|sk|lm|jet2)\s?(\d{2,4})\b/;
+var POSTCODE_RE=/\b[a-z]{1,2}\d[a-z\d]?\s*\d[a-z]{2}\b/;
+var CHAT_QR=["Add flight","Change time","Talk to a person"];
+function card(p,v,w){
+  var f=fare(p,v), wl=w?whenLabel({day:w.day,time:w.time}):"";
+  return {place:p, vehicle:v, when:w||null, fare:f,
+    title:"Cheltenham to "+p.name, sub:VEH[v].name+" · about "+dur(p.mi)+(wl?" · "+wl:""),
+    text:"Cheltenham to "+p.name+" "+VEH[v].name+" £"+f};
+}
+function fareAns(p,v,w,lead){
+  v=v||"saloon";
+  var t=(lead?lead+" ":"")+"Here's your fixed price to "+p.name+(w?" for "+whenLabel({day:w.day,time:w.time}):"")+". "+VEH[v].name+", up to "+VEH[v].seats+" passengers.";
+  return {text:t, card:card(p,v,w), qr:CHAT_QR};
+}
+function answer(raw,ctx){
+  ctx=ctx||{};
+  var t=norm(raw), p=resolve(t), n=people(t), w=parseWhen(t), m;
+  var v=n?vehFor(n):(ctx.vehicle||"saloon"), when=w||ctx.when||null;
+  if(!t) return {text:"Type a question, or tap one of the suggestions below.", qr:CHAT_QR};
+  if(/\b(human|real person|a person|an agent|agent|operator|someone|speak to|talk to|call me|phone me)\b/.test(t))
+    return {text:"I'll pass you to our team. In the real app a member of the operator's team picks up this chat, usually within a few minutes, day or night. This is a demo, so nobody will reply here.", qr:CHAT_QR};
+  if(/\b(cancel|cancellation|refund)\b/.test(t))
+    return {text:"Free cancellation up to 24 hours before pickup (an example policy; the operator sets the real one). In the real app you open your booking and tap Cancel. This demo has no live booking to cancel.", qr:CHAT_QR};
+  if((m=FLIGHT_RE.exec(t))){ var code=(m[1]+m[2]).toUpperCase();
+    return {text:"Got it: flight "+code+" added to your booking. We track it live, so if it lands early or late your pickup moves with it at no extra cost.", qr:["Price to Heathrow","Change time"], flight:code}; }
+  if(/\b(flight|delay|delayed|delays|land|lands|landing|early)\b/.test(t))
+    return {text:"If your flight is delayed, don't worry. We track your flight number, so your driver waits for the real landing time, and you get 60 minutes free waiting from when you land. There's no charge for flight delays.", qr:["Add flight","Price to Heathrow"]};
+  if(/\b(wait|waits|waiting|meet|greet|arrivals|name board)\b/.test(t))
+    return {text:"Meet & greet is included: your driver waits in arrivals with a name board. You get 60 minutes free waiting after your flight lands, or 15 minutes for pickups from home.", qr:CHAT_QR};
+  if(/\b(wheelchair|accessible|disabled|disability|mobility|ramp)\b/.test(t))
+    return {text:"Yes. We have wheelchair-accessible vehicles with a rear ramp, room for the chair plus two passengers. They're priced on request"+(p?", so I'll ask the team for a quote to "+p.name+". In the real app you'd get it within about 15 minutes.":". Tell me where you're going and I'll ask the team for a quote."), qr:["Price to Heathrow","Talk to a person"]};
+  if(/\b(dog|dogs|cat|cats|pet|pets|puppy|animal|animals)\b/.test(t)){
+    var pt="Yes, pets are welcome at no extra charge. Small pets travel in a carrier, dogs ride on a seat cover in the back, and assistance dogs are always welcome.";
+    return p?fareAns(p,v,when,pt):{text:pt+" Where are you heading?", qr:["Price to Heathrow","Price to Gatwick"]}; }
+  if(/\b(child|children|kid|kids|baby|babies|infant|toddler|car seat|booster|child seat)\b/.test(t)){
+    var ct="Yes. Child seats and boosters are free. Tell us the ages when you book and the driver brings the right ones.";
+    return p?fareAns(p,v,when,ct):{text:ct+" Where are you heading?", qr:["Price to Heathrow","Price to Gatwick"], ctx:{vehicle:n?v:null}}; }
+  if(/\b(business|company|corporate|invoice|invoicing|expenses|account)\b/.test(t))
+    return {text:"We offer business accounts: book for your team, pay by monthly invoice, add cost centres and have receipts emailed to finance. Tap Business at the bottom of the home screen to see more.", qr:CHAT_QR};
+  if(/\b(payment|pay (by|with|in|cash|card|on)|card|cash|apple pay|google pay|paypal|amex|contactless)\b/.test(t))
+    return {text:"You can pay by card or phone wallet in the app, by business invoice, or cash to the driver. Prices are fixed, so you pay exactly what you were quoted.", qr:CHAT_QR};
+  if(n){
+    if(n>8) return {text:"For "+n+" people we'd send two vehicles or a coach. I'll pass this to our team to quote; in the real app they reply within about 15 minutes.", qr:["Talk to a person"]};
+    if(p) return fareAns(p,v,when,"For "+n+" people I'd book the "+VEH[v].name+".");
+    return {text:"For "+n+" people I'd book the "+VEH[v].name+" (up to "+VEH[v].seats+" passengers). Where are you heading?", qr:["Price to Heathrow","Price to Gatwick"], ctx:{vehicle:v}}; }
+  var fareWords=/\b(how much|price|prices|cost|costs|fare|fares|quote|charge|rate|rates)\b|£/.test(t);
+  var fixedQ=/\b(fixed|surge|surcharge|go up|goes up|traffic)\b/.test(t)&&(fareWords||/\b(it|fixed)\b/.test(t));
+  var FIXED="Yes, the price is fixed when you book. It never goes up for traffic or delays.";
+  if(/\b(how long|take to get|journey time|how far)\b/.test(t)){
+    if(p) return fareAns(p,v,when,"It's about "+dur(p.mi)+" from Cheltenham.");
+    return {text:"It depends where you're going: about 1h to Birmingham or Bristol, 2h to Heathrow, 2h 45m to Gatwick. Where are you heading?", qr:["Heathrow","Gatwick","Bristol Airport"]}; }
+  if(fixedQ&&p) return fareAns(p,v,when,FIXED);
+  if(fareWords&&p) return fareAns(p,v,when);
+  if(fareWords&&(m=/\bto\s+(.{3,})$/.exec(t))&&/\d|street|st\b|road|rd\b|lane|avenue|way|close|hotel|station|house|london/.test(m[1])){ var fa=resolveAddress(m[1]); return fareAns(fa,v,when,"I've found that address."); }
+  if(fareWords&&(m=POSTCODE_RE.exec(t))){ var fp=resolveAddress(m[0]); return fareAns(fp,v,when,"I've found that postcode."); }
+  if(/\b(luggage|bag|bags|suitcase|suitcases|case|cases|golf|ski|skis|bike|bikes|pram|buggy)\b/.test(t)){
+    var bags=(m=/\b(\d{1,2}|two|three|four|five|six|seven|eight)\s+(?:big |large |small )?(bags|suitcases|cases)\b/.exec(t))?(+m[1]||NUM[m[1]]):0;
+    var lv=bags>=3||/\b(golf|ski|skis|bike|bikes)\b/.test(t)?"mpv":v;
+    var lt="The Executive Saloon fits 2 large suitcases plus hand luggage, the MPV fits 4 to 5, and the minibus 8. Golf clubs, skis and folding bikes go in the MPV."+(lv==="mpv"&&lv!==v?" For your bags I'd book the MPV.":"");
+    return p?fareAns(p,lv,when,lt):{text:lt+" Where are you heading?", qr:["Price to Heathrow","Price to Gatwick"], ctx:{vehicle:lv}}; }
+  if(w&&p) return fareAns(p,v,when);
+  if(w) return {text:"Okay, "+whenLabel(w)+". Where are you going?", qr:["Heathrow","Gatwick","Bristol Airport"], ctx:{when:w}};
+  if(/\b(change|move|different|reschedule|another)\b.*\b(time|date|day|pickup)\b|\breschedule\b|\bchange time\b/.test(t))
+    return {text:"No problem. What day and time would you like? For example “Friday 6am”.", qr:["Tomorrow 06:30","Fri 30 Oct 11:30","Sat 31 Oct 09:00"]};
+  if(/\b(driver|drivers|chauffeur)\b/.test(t))
+    return {text:"All our drivers are council-licensed private hire drivers with DBS checks. Before pickup you'll see your driver's name, photo, car and plate, and you can call or message them through the app. If they're running late, we tell you straight away.", qr:CHAT_QR};
+  if(fareWords) return {text:(fixedQ?FIXED+" Prices depend":"Prices are fixed and depend")+" on where you're going. From Cheltenham: Birmingham £119, Bristol £119, Heathrow £189, Gatwick £219. Where are you heading?", qr:["Price to Heathrow","Price to Gatwick","Price to Bristol"]};
+  if(p) return fareAns(p,v,when);
+  if((m=/\bto\s+(.{3,})$/.exec(t))&&/\d|street|st\b|road|rd\b|lane|avenue|way|close|hotel|station|port|airport|house|london/.test(m[1])){ var a=resolveAddress(m[1]); return fareAns(a,v,when,"I've found that address."); }
+  if((m=POSTCODE_RE.exec(t))){ var pc=resolveAddress(m[0]); return fareAns(pc,v,when,"I've found that postcode."); }
+  if(/^(hi|hello|hey|hiya|howdy|good (morning|afternoon|evening)|yo)\b/.test(t))
+    return {text:"Hi! I can price a ride, add your flight, or answer questions about pets, luggage, child seats and waiting time. Where are you heading?", qr:["Price to Heathrow","Add flight","Talk to a person"]};
+  if(/\b(thanks|thank you|thank u|cheers|ta|great|perfect|brilliant|lovely)\b/.test(t))
+    return {text:"You're welcome. Anything else I can help with?", qr:CHAT_QR};
+  if(/^add flight$/.test(t)) return {text:"Sure. What's your flight number? For example BA286.", qr:["BA286","EZY8123"]};
+  return {text:"Sorry, I didn't catch that. I can help with prices, flights, luggage, pets, child seats, accessibility and changing a booking. Or tap Talk to a person.", qr:CHAT_QR};
+}
+var CARDS=[], chatCtx={};
+function cardHTML(c,i){
+  return "<div class='bot cardb' style='padding:0;overflow:hidden'><div style='padding:10px 12px 8px'>"+esc(c.lead)+"</div>"+
+    "<div style='margin:0 10px;padding:10px 12px;border-radius:12px;background:#0A0A0C;border:1px solid #4C3E20;display:flex;justify-content:space-between;align-items:center;gap:10px'><span style='min-width:0'><span class='h' style='display:block;font-weight:600;font-size:15px'>"+esc(c.title)+"</span><span class='muted' style='font-size:12px'>"+esc(c.sub)+"</span></span><span class='h' style='font-size:20px;font-weight:700;color:#F3D27A'>£"+c.fare+"</span></div>"+
+    "<div class='muted' style='padding:8px 12px 0;font-size:12px'>Fixed price. Meet &amp; greet, flight monitoring and 60 min free waiting included.</div>"+
+    "<div style='padding:10px 12px 12px'><button data-card='"+i+"' style='width:100%;height:40px;border-radius:999px;background:linear-gradient(180deg,#F6DB8A,#C9A140);color:#1A1405;border:0;font:600 14px Inter,sans-serif;cursor:pointer'>Book this ride</button></div></div>";
+}
+function renderQR(q){
+  qrrow.innerHTML=(q&&q!==CHAT_QR)?q.map(function(x){return "<button class='qr'>"+esc(x)+"</button>"}).join(""):DEFAULT_QR.join("");
+}
+function scrollEnd(){list.scrollTop=list.scrollHeight}
+function send(text){
+  text=String(text||"").trim();
+  if(!text){ toast("Type a question first, or tap a suggestion"); if(chatIn) chatIn.focus(); return; }
+  list.insertAdjacentHTML("beforeend","<div class='me'>"+esc(text)+"</div>");
+  if(chatIn) chatIn.value="";
+  var ty=document.createElement("div"); ty.className="bot"; ty.innerHTML="<span class='dots' aria-label='Assistant is typing'><i></i><i></i><i></i></span>"; list.appendChild(ty); scrollEnd();
+  var r;
+  try{ r=answer(/^price to /i.test(text)?"how much to "+text.slice(9):text, chatCtx); }catch(err){ r=null; }
+  if(!r||!r.text) r={text:"Sorry, I didn't catch that. I can help with prices, flights, luggage, pets, child seats, accessibility and changing a booking. Or tap Talk to a person.", qr:CHAT_QR};
+  chatCtx=r.ctx||{};
+  setTimeout(function(){
+    ty.remove();
+    try{
+      if(r.flight) setFlight(r.flight);
+      if(r.card){ r.card.lead=r.text; CARDS.push(r.card); list.insertAdjacentHTML("beforeend",cardHTML(r.card,CARDS.length-1)); }
+      else list.insertAdjacentHTML("beforeend","<div class='bot'>"+esc(r.text)+"</div>");
+    }catch(err){ list.insertAdjacentHTML("beforeend","<div class='bot'>"+esc(r.text)+"</div>"); }
+    try{ renderQR(r.qr); }catch(err){} scrollEnd();
+  },600);
+}
+list.addEventListener("click",function(e){
+  var b=e.target.closest("button[data-card]"); if(!b) return;
+  var c=CARDS[+b.dataset.card]; setDest(c.place); setVehicle(c.vehicle); if(c.when) setWhen(c.when); window.__go("quote");
+});
+qrrow.addEventListener("click",function(e){var b=e.target.closest(".qr"); if(b) send(txt(b));});
+if(sendBtn) sendBtn.addEventListener("click",function(e){e.preventDefault(); send(chatIn&&chatIn.value)});
+if(chatIn) chatIn.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault(); send(chatIn.value);}});
+if(mic) mic.addEventListener("click",function(e){
+  e.preventDefault(); if(mic.classList.contains("rec")) return;
+  var ph0=chatIn?chatIn.placeholder:""; mic.classList.add("rec"); if(chatIn) chatIn.placeholder="Listening… (demo)";
+  setTimeout(function(){ mic.classList.remove("rec"); if(chatIn) chatIn.placeholder=ph0; send("Can I bring my dog to Heathrow?"); },1400);
+});
+window.__chatAnswer=function(q){var r=answer(q,{}); return {text:r.text, card:r.card?r.card.text:null, fare:r.card?r.card.fare:null, vehicle:r.card?r.card.vehicle:null, place:r.card?r.card.place.name:null, qr:r.qr, flight:r.flight||null}};
+window.__chatSend=send;
+window.__chatReset=function(){list.innerHTML=initialChat; $$(".bot button",list).forEach(function(b){ if(/Book this ride/.test(txt(b))) b.addEventListener("click",function(){setDest(placeByName("Heathrow T5")); setVehicle("mpv"); window.__go("quote");}); }); renderQR(null); chatCtx={};};
+window.__wired=true;
+})();
+</script>
+</body></html>
